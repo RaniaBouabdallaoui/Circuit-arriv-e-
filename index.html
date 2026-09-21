@@ -146,19 +146,19 @@
   .gsf2-stepper { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
   .gsf2-step { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; }
   .gsf2-step:not(:last-child)::after {
-    content: ""; position: absolute; top: 15px; left: calc(50% + 20px); right: calc(-50% + 20px);
+    content: ""; position: absolute; top: 13px; left: calc(50% + 16px); right: calc(-50% + 16px);
     height: 2px; background: var(--border);
   }
   .gsf2-step-circle {
-    width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); background: var(--panel);
-    display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 800; font-size: 12px;
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); background: var(--panel);
+    display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 800; font-size: 10.5px;
     color: var(--text-faint); cursor: pointer; z-index: 1; flex-shrink: 0;
   }
   .gsf2-step-circle.done { background: var(--success); border-color: var(--success); color: #fff; }
   .gsf2-step-circle.overdue { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
   .gsf2-step-circle.soon { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
-  .gsf2-step-label { font-size: 9.5px; color: var(--text-dim); font-weight: 700; margin-top: 5px; text-align: center; line-height: 1.2; }
-  .gsf2-step-time { font-size: 9px; font-family: var(--mono); color: var(--text-faint); margin-top: 1px; }
+  .gsf2-step-label { font-size: 8px; color: var(--text-dim); font-weight: 700; margin-top: 4px; text-align: center; line-height: 1.15; }
+  .gsf2-step-time { font-size: 8px; font-family: var(--mono); color: var(--text-faint); margin-top: 1px; }
 
   .gsf2-validate-box {
     display: flex; align-items: center; gap: 6px; background: var(--primary-bg); border: 1px solid var(--primary);
@@ -185,6 +185,21 @@
   }
   .gsf2-comment-saved { font-size: 9.5px; color: var(--success); font-family: var(--mono); margin-top: 3px; visibility: hidden; }
   .gsf2-comment-saved.show { visibility: visible; }
+
+  .gsf2-photos { margin-top: 8px; }
+  .gsf2-photos-thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .gsf2-photo-thumb { position: relative; width: 48px; height: 48px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .gsf2-photo-thumb img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; display: block; }
+  .gsf2-photo-remove {
+    position: absolute; top: 1px; right: 1px; width: 15px; height: 15px; line-height: 13px; padding: 0;
+    background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 50%; font-size: 10px; cursor: pointer;
+  }
+  .gsf2-photo-add {
+    width: 48px; height: 48px; border-radius: 8px; border: 1px dashed var(--border); background: var(--panel-2);
+    display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-dim);
+    cursor: pointer; text-align: center; line-height: 1.1;
+  }
+  .gsf2-photo-add:hover { background: #E4E7F0; }
 
   .gsf2-empty { text-align: center; color: var(--text-faint); padding: 50px 20px; font-size: 13.5px; grid-column: 1 / -1; }
 
@@ -270,8 +285,10 @@
   const JALONS = {
     ouverture: { label: "Ouverture", short: "OUV", offset: -5, needsPorteur: false },
     mise_en_place: { label: "Mise en place", short: "MEP", offset: -5, needsPorteur: false },
-    fermeture: { label: "Fermeture", short: "FER", offset: null, needsPorteur: true },
     go_debarquement: { label: "Go débarquement", short: "GO", offset: 0, needsPorteur: false },
+    ascenseur_verifie: { label: "Ascenseur vérifié", short: "ASC", offset: 0, needsPorteur: false },
+    confirmation_pn: { label: "Confirmation PN", short: "PNC", offset: 0, needsPorteur: false },
+    fermeture: { label: "Fermeture", short: "FER", offset: null, needsPorteur: true },
   };
   const JALON_KEYS = Object.keys(JALONS);
 
@@ -372,13 +389,16 @@
   function pushFlight(vol, parking, bloc, porteur, porte, gate, biStatut, provenance) {
     flights.push({
       id: uid(), vol, porte, gate, parking, heureBloc: bloc, porteur, biStatut: !!biStatut, provenance: provenance || null,
+      pax: null,
       jalons: {
         ouverture: { done: false, doneAt: null, qui: null },
         mise_en_place: { done: false, doneAt: null, qui: null },
-        fermeture: { done: false, doneAt: null, qui: null },
         go_debarquement: { done: false, doneAt: null, qui: null, forced: false },
+        ascenseur_verifie: { done: false, doneAt: null, qui: null },
+        confirmation_pn: { done: false, doneAt: null, qui: null },
+        fermeture: { done: false, doneAt: null, qui: null },
       },
-      commentaire: "", creeLe: Date.now(), majLe: Date.now(),
+      commentaire: "", photos: [], creeLe: Date.now(), majLe: Date.now(),
     });
   }
 
@@ -435,6 +455,20 @@
     // NAVETTE (bus) : token "true"/"false" isolé, ailleurs sur la ligne
     const biStatut = /\btrue\b/i.test(line);
     return { vol, parking, heureReelle, biStatut, provenance };
+  }
+
+  // Ajoute les champs manquants sur les vols enregistrés avant l'ajout d'une fonctionnalité
+  // (jalons "ascenseur vérifié" / "confirmation PN", nombre de pax, photos), pour ne jamais planter
+  // sur d'anciennes données déjà sauvegardées.
+  function normalizeFlight(f) {
+    if (!f.jalons) f.jalons = {};
+    JALON_KEYS.forEach(k => {
+      if (!f.jalons[k]) f.jalons[k] = { done: false, doneAt: null, qui: null };
+    });
+    if (f.jalons.go_debarquement.forced === undefined) f.jalons.go_debarquement.forced = false;
+    if (f.pax === undefined) f.pax = null;
+    if (!Array.isArray(f.photos)) f.photos = [];
+    return f;
   }
 
   let storageHealthy = true;
@@ -500,7 +534,7 @@
     if (!recentLocalSave) {
       try {
         const f = await window.storage.get("flights", true);
-        flights = f ? JSON.parse(f.value) : [];
+        flights = f ? JSON.parse(f.value).map(normalizeFlight) : [];
         flightsLoadedOnce = true;
       } catch (e) {
         if (!flightsLoadedOnce) flights = [];
@@ -684,12 +718,32 @@
             <button class="gsf2-validate-cancel" data-cancel-validation="1">✕</button>
           </div>
         ` : ""}
-        <div>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
           <span class="gsf2-bistatut-chip ${f.biStatut ? "on" : ""}" data-bistatut-id="${f.id}" title="Vol avec navette bus : fermeture à H+20">🚌 ${f.biStatut ? "BI STATUT" : "Bi statut ?"}</span>
           ${f.jalons.go_debarquement.forced ? `<span class="gsf2-forced-chip on" data-forced-id="${f.id}">⚠ GO forcé</span>` : `<span class="gsf2-forced-chip" data-forced-id="${f.id}">GO forcé ?</span>`}
+          ${f.biStatut ? `
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--text-dim); font-weight:700;">
+              Pax :
+              <input type="number" min="0" class="gsf2-pax-input" data-pax-id="${f.id}" value="${f.pax !== null && f.pax !== undefined ? f.pax : ""}" placeholder="—" style="width:52px; font-family:var(--mono); font-size:11.5px; background:var(--panel-2); border:1px solid var(--border); border-radius:6px; padding:3px 6px; color:var(--text);" />
+            </span>
+          ` : ""}
         </div>
         <textarea class="gsf2-comment" data-comment-id="${f.id}" placeholder="Commentaire / compte rendu...">${f.commentaire || ""}</textarea>
         <div class="gsf2-comment-saved" id="gsf2-saved-${f.id}">Enregistré ✓</div>
+        <div class="gsf2-photos">
+          <div class="gsf2-photos-thumbs">
+            ${(f.photos || []).map(p => `
+              <div class="gsf2-photo-thumb">
+                <img src="${p.dataUrl}" data-photo-view="${p.dataUrl}" />
+                <button class="gsf2-photo-remove" data-photo-remove-flight="${f.id}" data-photo-remove-id="${p.id}" title="Supprimer la photo">✕</button>
+              </div>
+            `).join("")}
+            <label class="gsf2-photo-add" data-photo-add-id="${f.id}" title="Ajouter une ou plusieurs photos">
+              📷 +
+              <input type="file" accept="image/*" multiple data-photo-input-id="${f.id}" style="display:none;" />
+            </label>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -815,6 +869,86 @@
           });
         }, 700);
       });
+    });
+    container.querySelectorAll("[data-pax-id]").forEach(input => {
+      let timer = null;
+      input.addEventListener("input", () => {
+        const id = input.getAttribute("data-pax-id");
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          const flight = flights.find(f => f.id === id);
+          if (!flight) return;
+          const v = input.value.trim();
+          flight.pax = v === "" ? null : Math.max(0, parseInt(v, 10) || 0);
+          flight.majLe = Date.now();
+          saveFlights();
+        }, 500);
+      });
+    });
+    container.querySelectorAll("[data-photo-input-id]").forEach(input => {
+      input.addEventListener("change", async (e) => {
+        const id = input.getAttribute("data-photo-input-id");
+        const flight = flights.find(f => f.id === id);
+        const files = Array.from(e.target.files || []);
+        e.target.value = "";
+        if (!flight || files.length === 0) return;
+        for (const file of files) {
+          try {
+            const dataUrl = await resizeImageToDataUrl(file);
+            flight.photos = flight.photos || [];
+            flight.photos.push({ id: uid(), dataUrl, addedAt: Date.now() });
+          } catch (err) { /* photo illisible, on l'ignore */ }
+        }
+        flight.majLe = Date.now();
+        renderCurrentGrid();
+        const ok = await saveFlights();
+        if (!ok) alert("⚠ Les photos n'ont pas pu être sauvegardées (espace de stockage du navigateur insuffisant). Essayez avec moins de photos ou des photos plus légères.");
+      });
+    });
+    container.querySelectorAll("[data-photo-remove-id]").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const flightId = e.currentTarget.getAttribute("data-photo-remove-flight");
+        const photoId = e.currentTarget.getAttribute("data-photo-remove-id");
+        const flight = flights.find(f => f.id === flightId);
+        if (!flight) return;
+        if (!confirm("Supprimer cette photo ?")) return;
+        flight.photos = (flight.photos || []).filter(p => p.id !== photoId);
+        flight.majLe = Date.now();
+        renderCurrentGrid();
+        saveFlights();
+      });
+    });
+    container.querySelectorAll("[data-photo-view]").forEach(img => {
+      img.addEventListener("click", (e) => {
+        const win = window.open();
+        if (win) win.document.write(`<img src="${e.currentTarget.getAttribute("data-photo-view")}" style="max-width:100%;" />`);
+      });
+    });
+  }
+
+  // Redimensionne une photo côté navigateur avant sauvegarde (max ~900px de large, JPEG compressé)
+  // pour éviter de saturer le stockage local du navigateur, qui est limité en taille.
+  function resizeImageToDataUrl(file, maxWidth) {
+    maxWidth = maxWidth || 900;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("lecture impossible"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("image invalide"));
+        img.onload = () => {
+          const scale = Math.min(1, maxWidth / img.width);
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.65));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
     });
   }
 
@@ -1081,7 +1215,13 @@
 
         const results = [];
         let skippedNoDhc = 0;
+        let skippedJ1 = 0;
         rows.forEach(r => {
+          // On ignore toute ligne qui indique le lendemain (J+1), sous quelque forme que ce soit
+          // ("J+1", "+1", un badge de date différente...) : seuls les vols du jour sont importés.
+          const rowText = (r.textContent || "");
+          if (/\bJ\s*\+\s*1\b/i.test(rowText)) { skippedJ1++; return; }
+
           const cells = r.querySelectorAll("td");
           if (cells.length < 10) return;
 
@@ -1100,10 +1240,14 @@
 
           const prov = (cells[7].textContent || "").trim().toUpperCase();
           const parkg = (cells[8].textContent || "").trim().toUpperCase();
-          const busIcon = cells[9].querySelector("svg, i, img, [class*='bus' i]");
+          // Icône bus : cellule juste à droite du parking (cells[9]), détectée de façon large
+          // (classe, titre ou libellé contenant "bus"/"navette").
+          const busCell = cells[9];
+          const busIcon = busCell.querySelector("svg, i, img, [class*='bus' i], [class*='navette' i], [title*='bus' i], [title*='navette' i], [aria-label*='bus' i]");
+          const busText = /\bbus\b|\bnavette\b/i.test((busCell.textContent || ""));
 
           const line = [vol, parkg, dhc, prov];
-          if (busIcon) line.push("BUS");
+          if (busIcon || busText) line.push("BUS");
           results.push(line.join("\t"));
         });
 
@@ -1112,7 +1256,7 @@
           statusEl.style.color = "var(--danger)";
         } else {
           document.getElementById("bulk-input").value = results.join("\n");
-          statusEl.textContent = `✓ ${results.length} vol(s) lu(s) directement depuis la page (${skippedNoDhc} sans heure réelle pour l'instant, ignorés). Vérifiez puis cliquez sur "Importer la liste".`;
+          statusEl.textContent = `✓ ${results.length} vol(s) lu(s) directement depuis la page (${skippedNoDhc} sans heure réelle ignorés, ${skippedJ1} vol(s) du lendemain (J+1) ignorés). Vérifiez puis cliquez sur "Importer la liste".`;
           statusEl.style.color = "var(--success)";
         }
       } catch (err) {
@@ -1243,11 +1387,14 @@
 
     function exportCsv(filenamePrefix) {
       const headers = [
-        "N° vol", "Porte", "Gate", "Parking", "Heure bloc", "Heure réelle bloc", "Porteur", "Bi statut (bus)",
+        "N° vol", "Porte", "Gate", "Parking", "Heure bloc", "Heure réelle bloc", "Porteur", "Bi statut (bus)", "Nombre de pax (bi statut)",
         "Ouverture", "Qui (ouverture)",
         "Mise en place", "Qui (mise en place)",
+        "Ascenseur vérifié", "Qui (ascenseur)",
+        "Confirmation PN", "Qui (confirmation PN)",
         "Fermeture", "Qui (fermeture)",
         "GO débarquement", "Qui (GO)", "GO forcé",
+        "Nombre de photos",
         "Commentaire",
       ];
       function esc(v) {
@@ -1260,11 +1407,14 @@
           const j = f.jalons;
           const t = (key) => j[key].doneAt ? fmtHHMM(new Date(j[key].doneAt)) : "";
           return [
-            f.vol, f.porte || "", f.gate || "", f.parking || "", f.heureBloc, f.heureBlocReel || "", f.porteur || "", f.biStatut ? "OUI" : "",
+            f.vol, f.porte || "", f.gate || "", f.parking || "", f.heureBloc, f.heureBlocReel || "", f.porteur || "", f.biStatut ? "OUI" : "", f.pax !== null && f.pax !== undefined ? f.pax : "",
             t("ouverture"), j.ouverture.qui || "",
             t("mise_en_place"), j.mise_en_place.qui || "",
+            t("ascenseur_verifie"), j.ascenseur_verifie.qui || "",
+            t("confirmation_pn"), j.confirmation_pn.qui || "",
             t("fermeture"), j.fermeture.qui || "",
             t("go_debarquement"), j.go_debarquement.qui || "", j.go_debarquement.forced ? "OUI" : "",
+            (f.photos || []).length,
             f.commentaire || "",
           ].map(esc).join(";");
         });
@@ -1316,7 +1466,7 @@
           const restored = Array.isArray(parsed) ? parsed : parsed.flights;
           if (!Array.isArray(restored)) throw new Error("format invalide");
           if (!confirm(`Restaurer ${restored.length} vol(s) ?`)) return;
-          flights = restored;
+          flights = restored.map(normalizeFlight);
           await saveFlights();
           render();
         } catch (err) { alert("Fichier de sauvegarde illisible."); }
